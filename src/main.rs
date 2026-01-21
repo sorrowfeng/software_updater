@@ -39,10 +39,12 @@ struct UpdateApp {
     error: Option<String>,
     receiver: Option<mpsc::Receiver<UpdateMsg>>,
     dict: &'static LangDict,
+    delay_seconds: u64,
+    start_time: Option<std::time::Instant>,
 }
 
 impl UpdateApp {
-    fn new(package_path: String, lang: Language, target_path: Option<String>, zip_inner_path: String) -> Self {
+    fn new(package_path: String, lang: Language, target_path: Option<String>, zip_inner_path: String, delay_seconds: u64) -> Self {
         let dict = get_dict(lang);
         Self {
             package_path,
@@ -57,6 +59,8 @@ impl UpdateApp {
             error: None,
             receiver: None,
             dict,
+            delay_seconds,
+            start_time: None,
         }
     }
 }
@@ -65,16 +69,36 @@ impl App for UpdateApp {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
         // 初始化更新线程
         if self.receiver.is_none() {
-            let (sender, receiver) = mpsc::channel();
-            self.receiver = Some(receiver);
+            // 如果还没有开始计时，记录开始时间
+            if self.start_time.is_none() {
+                self.start_time = Some(std::time::Instant::now());
+            }
             
-            let package_path = self.package_path.clone();
-            let target_path = self.target_path.clone();
-            let zip_inner_path = self.zip_inner_path.clone();
-            thread::spawn(move || {
-                // 直接调用perform_update，它内部会处理所有错误并发送到GUI
-                perform_update(&package_path, &target_path, &zip_inner_path, sender);
-            });
+            // 检查是否已经过了指定的延时时间
+            if let Some(start_time) = self.start_time {
+                let elapsed = start_time.elapsed();
+                let delay_duration = std::time::Duration::from_secs(self.delay_seconds);
+                
+                if elapsed < delay_duration {
+                    // 如果延时未完成，显示延时状态
+                    let remaining_seconds = self.delay_seconds - elapsed.as_secs();
+                    let delay_msg = format!("{}", self.dict.status_starting_in(remaining_seconds));
+                    self.status = delay_msg.clone();
+                    self.status_text = delay_msg;
+                } else {
+                    // 延时完成，开始执行更新操作
+                    let (sender, receiver) = mpsc::channel();
+                    self.receiver = Some(receiver);
+                    
+                    let package_path = self.package_path.clone();
+                    let target_path = self.target_path.clone();
+                    let zip_inner_path = self.zip_inner_path.clone();
+                    thread::spawn(move || {
+                        // 直接调用perform_update，它内部会处理所有错误并发送到GUI
+                        perform_update(&package_path, &target_path, &zip_inner_path, sender);
+                    });
+                }
+            }
         }
         
         // 处理消息
@@ -194,10 +218,20 @@ fn main() -> io::Result<()> {
         "".to_string()
     };
     
+    // 解析延时参数（单位：秒），默认为0
+    let delay_seconds = if args.len() > 3 {
+        match args[3].parse::<u64>() {
+            Ok(seconds) => seconds,
+            Err(_) => 0,
+        }
+    } else {
+        0
+    };
+    
     let mut target_path = None;
     
-    // 查找目标路径和语言选项
-    for i in 3..args.len() {
+    // 查找目标路径和语言选项，从索引4开始（跳过延时参数）
+    for i in 4..args.len() {
         if parse_language(&args[i]).is_some() {
             lang_index = i;
             break;
@@ -220,7 +254,8 @@ fn main() -> io::Result<()> {
     // 设置窗口选项
     let mut viewport_builder = egui::ViewportBuilder::default()
         .with_inner_size([450.0, 250.0])
-        .with_resizable(false);
+        .with_resizable(false)
+        .with_always_on_top();
     
     // 嵌入图标文件到可执行文件中
     let icon_bytes = include_bytes!(r"../assets/update.png");
@@ -281,7 +316,7 @@ fn main() -> io::Result<()> {
             // 应用字体配置
             cc.egui_ctx.set_fonts(fonts);
             
-            Ok(Box::new(UpdateApp::new(package_path, lang, target_path, zip_inner_path)))
+            Ok(Box::new(UpdateApp::new(package_path, lang, target_path, zip_inner_path, delay_seconds)))
         }),
     ).unwrap();
     

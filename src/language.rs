@@ -43,6 +43,14 @@ impl LangDict {
             Language::English => format!("Processing: {}", file_name),
         }
     }
+    
+    // 获取启动延时状态字符串
+    pub fn status_starting_in(&self, seconds: u64) -> String {
+        match self.lang {
+            Language::Chinese => format!("{}秒后开始更新...", seconds),
+            Language::English => format!("Starting in {} seconds...", seconds),
+        }
+    }
 }
 
 // 根据语言类型获取字典
