@@ -12,7 +12,6 @@ pub struct LangDict {
     pub status_complete: &'static str,
     pub status_failed: &'static str,
     pub button_ok: &'static str,
-    pub usage: &'static str,
     pub lang: Language,
 }
 
@@ -23,7 +22,6 @@ pub const CHINESE: LangDict = LangDict {
     status_complete: "软件更新已完成！",
     status_failed: "软件更新失败！",
     button_ok: "确定",
-    usage: "用法: {} <更新包路径> [zh|en]",
     lang: Language::Chinese,
 };
 
@@ -34,19 +32,10 @@ pub const ENGLISH: LangDict = LangDict {
     status_complete: "Software update completed!",
     status_failed: "Software update failed!",
     button_ok: "OK",
-    usage: "Usage: {} <update_package_path> [zh|en]",
     lang: Language::English,
 };
 
 impl LangDict {
-    // 获取替换文件状态字符串
-    pub fn status_replacing_files(&self, current: usize, total: usize) -> String {
-        match self.lang {
-            Language::Chinese => format!("正在替换文件 ({}/{})...", current, total),
-            Language::English => format!("Replacing files ({}/{})...", current, total),
-        }
-    }
-    
     // 获取处理文件状态字符串
     pub fn status_processing(&self, file_name: &str) -> String {
         match self.lang {
