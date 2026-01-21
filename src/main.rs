@@ -328,6 +328,13 @@ fn perform_update(package_path: &str, target_path: &Option<String>, zip_inner_pa
     match actual_perform_update(package_path, target_path, zip_inner_path, sender.clone()) {
         Ok(_) => {
             log::info!("更新完成！");
+            
+            // 更新完成后，删除源zip文件
+            if let Err(e) = std::fs::remove_file(package_path) {
+                log::error!("删除源zip文件失败: {}", e);
+            } else {
+                log::info!("已成功删除源zip文件: {}", package_path);
+            }
         },
         Err(e) => {
             let error_msg = e.to_string();
