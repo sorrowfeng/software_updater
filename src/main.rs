@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 use std::env;
 use std::fs;
 use std::io;
@@ -10,7 +12,6 @@ use zip::ZipArchive;
 
 use eframe::{App, Frame};
 use egui::{CentralPanel, Context, ProgressBar, Visuals};
-use image::ImageReader;
 
 mod language;
 use language::{Language, LangDict, get_dict, parse_language};
@@ -221,88 +222,75 @@ fn main() -> io::Result<()> {
         .with_inner_size([450.0, 250.0])
         .with_resizable(false);
     
-    // 尝试加载PNG图标文件
-    let icon_path = Path::new("assets/update.png");
-    if icon_path.exists() {
-        log::info!("图标文件存在: {:?}", icon_path);
-        
-        // 加载PNG文件
-        let img = match ImageReader::open(icon_path) {
-            Ok(reader) => reader,
-            Err(e) => {
-                log::error!("无法打开PNG文件: {:?}", e);
-                return Err(io::Error::new(io::ErrorKind::NotFound, e.to_string()));
-            }
-        };
-        
-        // 解码图像
-        let img = match img.decode() {
-            Ok(img) => img,
-            Err(e) => {
-                log::error!("无法解码PNG文件: {:?}", e);
-                return Err(io::Error::new(io::ErrorKind::InvalidData, e.to_string()));
-            }
-        };
-        
-        // 转换为RGBA格式
-        let img = img.into_rgba8();
-        let width = img.width();
-        let height = img.height();
-        let rgba = img.into_raw();
-        
-        // 创建IconData
-        let icon_data = egui::IconData {
-            rgba,
-            width,
-            height,
-        };
-        
-        // 设置图标
-        viewport_builder = viewport_builder.with_icon(icon_data);
-        log::info!("已设置窗口图标");
-    } else {
-        log::warn!("图标文件不存在: {:?}", icon_path);
-        
-        // 创建一个简单的16x16图标作为备用
-        let width = 16;
-        let height = 16;
-        let mut rgba = vec![0; width * height * 4]; // 初始化为透明
-        
-        // 绘制一个简单的更新符号（圆圈内的箭头）
-        for y in 4..12 {
-            for x in 4..12 {
-                let distance = ((x as f32 - 8.0).powi(2) + (y as f32 - 8.0).powi(2)).sqrt();
-                if distance < 4.0 {
-                    // 填充圆圈
-                    let index = (y * width + x) * 4;
-                    rgba[index + 0] = 255; // R
-                    rgba[index + 1] = 255; // G
-                    rgba[index + 2] = 255; // B
-                    rgba[index + 3] = 255; // A
+    // 嵌入图标文件到可执行文件中
+    let icon_bytes = include_bytes!(r"../assets/update.png");
+    
+    // 使用image crate解码嵌入的PNG数据
+    match image::load_from_memory(icon_bytes) {
+        Ok(img) => {
+            log::info!("成功解码嵌入的PNG图标");
+            
+            // 转换为RGBA格式
+            let img = img.into_rgba8();
+            let width = img.width();
+            let height = img.height();
+            let rgba = img.into_raw();
+            
+            // 创建IconData
+            let icon_data = egui::IconData {
+                rgba,
+                width,
+                height,
+            };
+            
+            // 设置图标
+            viewport_builder = viewport_builder.with_icon(icon_data);
+            log::info!("已设置窗口图标");
+        },
+        Err(e) => {
+            log::error!("无法解码嵌入的PNG图标: {:?}", e);
+            
+            // 创建一个简单的16x16图标作为备用
+            let width = 16;
+            let height = 16;
+            let mut rgba = vec![0; width * height * 4]; // 初始化为透明
+            
+            // 绘制一个简单的更新符号（圆圈内的箭头）
+            for y in 4..12 {
+                for x in 4..12 {
+                    let distance = ((x as f32 - 8.0).powi(2) + (y as f32 - 8.0).powi(2)).sqrt();
+                    if distance < 4.0 {
+                        // 填充圆圈
+                        let index = (y * width + x) * 4;
+                        rgba[index + 0] = 255; // R
+                        rgba[index + 1] = 255; // G
+                        rgba[index + 2] = 255; // B
+                        rgba[index + 3] = 255; // A
+                    }
                 }
             }
+            
+            // 绘制箭头
+            for i in 0..4 {
+                let x = 6 + i;
+                let y = 6 + i;
+                let index = (y * width + x) * 4;
+                rgba[index + 0] = 0;     // R
+                rgba[index + 1] = 0;     // G
+                rgba[index + 2] = 0;     // B
+                rgba[index + 3] = 255;   // A
+            }
+            
+            let icon_data = egui::IconData {
+                rgba,
+                width: width as u32,
+                height: height as u32,
+            };
+            
+            // 设置图标
+            viewport_builder = viewport_builder.with_icon(icon_data);
+            log::info!("已设置备用窗口图标");
         }
-        
-        // 绘制箭头
-        for i in 0..4 {
-            let x = 6 + i;
-            let y = 6 + i;
-            let index = (y * width + x) * 4;
-            rgba[index + 0] = 0;     // R
-            rgba[index + 1] = 0;     // G
-            rgba[index + 2] = 0;     // B
-            rgba[index + 3] = 255;   // A
-        }
-        
-        let icon_data = egui::IconData {
-            rgba,
-            width: width as u32,
-            height: height as u32,
-        };
-        
-        // 设置图标
-        viewport_builder = viewport_builder.with_icon(icon_data);
-        log::info!("已设置备用窗口图标");
     }
     
     let options = eframe::NativeOptions {
