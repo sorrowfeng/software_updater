@@ -218,25 +218,21 @@ fn main() -> io::Result<()> {
         "".to_string()
     };
     
-    // 解析延时参数（单位：秒），默认为0
-    let delay_seconds = if args.len() > 3 {
-        match args[3].parse::<u64>() {
-            Ok(seconds) => seconds,
-            Err(_) => 0,
-        }
-    } else {
-        0
-    };
-    
     let mut target_path = None;
+    let mut delay_seconds = 0;
     
-    // 查找目标路径和语言选项，从索引4开始（跳过延时参数）
-    for i in 4..args.len() {
+    // 解析目标路径、延时参数和语言选项
+    for i in 3..args.len() {
         if parse_language(&args[i]).is_some() {
             lang_index = i;
             break;
         } else if target_path.is_none() {
             target_path = Some(args[i].clone());
+        } else if delay_seconds == 0 {
+            // 尝试解析为延时参数
+            if let Ok(seconds) = args[i].parse::<u64>() {
+                delay_seconds = seconds;
+            }
         }
     }
     
@@ -455,25 +451,32 @@ fn actual_perform_update(package_path: &str, target_path: &Option<String>, zip_i
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
         let dest_path = current_dir.join(relative_path);
         
-        // 跳过当前运行的可执行文件（software_updater.exe）
-        if let Some(file_name) = dest_path.file_name() {
-            if file_name.to_str().unwrap() == exe_name {
-                log::info!("跳过当前运行文件: {:?}", dest_path);
-                continue;
-            }
-        }
-        
         // 确保目标目录存在
         if let Some(parent) = dest_path.parent() {
             fs::create_dir_all(parent)?;
         }
         
+        // 处理当前运行的可执行文件
+        let final_dest_path = if let Some(file_name) = dest_path.file_name() {
+            if file_name.to_str().unwrap() == exe_name {
+                // 如果是当前运行的可执行文件，将其重命名为.exe.new后缀
+                let new_path_str = format!("{}.new", dest_path.to_str().unwrap());
+                let new_path = Path::new(&new_path_str).to_path_buf();
+                log::info!("重命名当前运行文件: {:?} -> {:?}", dest_path, new_path);
+                new_path
+            } else {
+                dest_path.clone()
+            }
+        } else {
+            dest_path.clone()
+        };
+        
         // 复制文件
         current_file += 1;
         let file_name = relative_path.to_str().unwrap().to_string();
         sender.send(UpdateMsg::Progress(current_file, total_files, file_name.clone())).unwrap();
-        log::info!("复制文件: {:?} -> {:?}", entry_path, dest_path);
-        fs::copy(entry_path, dest_path)?;
+        log::info!("复制文件: {:?} -> {:?}", entry_path, final_dest_path);
+        fs::copy(entry_path, final_dest_path)?;
     }
     
     // 发送完成消息

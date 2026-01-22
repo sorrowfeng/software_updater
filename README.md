@@ -12,6 +12,10 @@
 - ✅ 支持实时进度更新
 - ✅ 支持错误处理和显示
 - ✅ 支持自定义窗口图标
+- ✅ 支持窗口置顶显示
+- ✅ 支持启动前延时配置
+- ✅ 支持更新完成后自动删除源ZIP文件
+- ✅ 支持智能处理当前运行的可执行文件（重命名为.exe.new）
 
 ## 安装和编译
 
@@ -24,14 +28,14 @@
 
 ```bash
 # 克隆仓库
-# git clone <repository-url>
+# git clone https://github.com/sorrowfeng/software_updater.git
 # cd software_updater
 
 # 编译
 cargo build --release
 
 # 运行
-cargo run --release -- <zip_path> [zip_inner_path] <target_path> [zh|en]
+cargo run --release -- <package_path> [zip_inner_path] <target_path> [delay_seconds] [zh|en]
 ```
 
 ## 使用方法
@@ -39,12 +43,13 @@ cargo run --release -- <zip_path> [zip_inner_path] <target_path> [zh|en]
 ### 命令行参数
 
 ```
-software_updater <zip_path> [zip_inner_path] <target_path> [zh|en]
+software_updater <package_path> [zip_inner_path] <target_path> [delay_seconds] [zh|en]
 ```
 
-- `zip_path`：更新包的路径（必填）
+- `package_path`：更新包的路径（必填）
 - `zip_inner_path`：压缩包内要复制的路径（可选，默认为根目录）
 - `target_path`：目标路径（必填）
+- `delay_seconds`：启动前延时时间（秒，可选，默认为0）
 - `zh|en`：语言选项（可选，默认为中文）
 
 ### 示例
@@ -59,14 +64,19 @@ software_updater <zip_path> [zip_inner_path] <target_path> [zh|en]
    software_updater update.zip app_folder C:\target\directory
    ```
 
-3. **使用英文界面**
+3. **添加3秒启动延时**
+   ```bash
+   software_updater update.zip app_folder C:\target\directory 3
+   ```
+
+4. **使用英文界面**
    ```bash
    software_updater update.zip C:\target\directory en
    ```
 
-4. **指定所有参数**
+5. **指定所有参数**
    ```bash
-   software_updater update.zip app_folder C:\target\directory en
+   software_updater update.zip app_folder C:\target\directory 5 en
    ```
 
 ## 项目结构
@@ -132,10 +142,18 @@ A: 请确保系统中安装了中文字体（如微软雅黑），或者使用�
 
 如有问题或建议，请通过以下方式联系：
 
-- 项目地址：<repository-url>
-- Issue：<repository-url>/issues
+- 项目地址：https://github.com/sorrowfeng/software_updater.git
+- Issue：https://github.com/sorrowfeng/software_updater/issues
+
 
 ## 更新日志
+
+### v0.1.1
+- 添加窗口置顶显示功能
+- 添加启动前延时配置选项
+- 添加更新完成后自动删除源ZIP文件功能
+- 添加智能处理当前运行可执行文件功能（重命名为.exe.new）
+- 调整命令行参数顺序，支持更灵活的配置
 
 ### v0.1.0
 - 初始版本
