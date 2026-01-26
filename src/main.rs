@@ -41,10 +41,11 @@ struct UpdateApp {
     dict: &'static LangDict,
     delay_seconds: u64,
     start_time: Option<std::time::Instant>,
+    start_exe_path: Option<String>,
 }
 
 impl UpdateApp {
-    fn new(package_path: String, lang: Language, target_path: Option<String>, zip_inner_path: String, delay_seconds: u64) -> Self {
+    fn new(package_path: String, lang: Language, target_path: Option<String>, zip_inner_path: String, delay_seconds: u64, start_exe_path: Option<String>) -> Self {
         let dict = get_dict(lang);
         Self {
             package_path,
@@ -61,6 +62,7 @@ impl UpdateApp {
             dict,
             delay_seconds,
             start_time: None,
+            start_exe_path,
         }
     }
 }
@@ -174,6 +176,13 @@ impl App for UpdateApp {
                     ui.label(egui::RichText::new(self.dict.status_complete).font(egui::FontId::proportional(16.0)).color(egui::Color32::GREEN));
                     ui.add_space(15.0);
                     if ui.add(egui::Button::new(self.dict.button_ok).min_size(egui::Vec2::new(80.0, 30.0))).clicked() {
+                        // 如果提供了启动exe路径，启动该exe
+                        if let Some(exe_path) = &self.start_exe_path {
+                            log::info!("启动应用程序: {}", exe_path);
+                            if let Err(e) = std::process::Command::new(exe_path).spawn() {
+                                log::error!("启动应用程序失败: {}", e);
+                            }
+                        }
                         std::process::exit(0);
                     }
                 }
@@ -220,8 +229,9 @@ fn main() -> io::Result<()> {
     
     let mut target_path = None;
     let mut delay_seconds = 0;
+    let mut start_exe_path = None;
     
-    // 解析目标路径、延时参数和语言选项
+    // 解析目标路径、延时参数、启动exe路径和语言选项
     for i in 3..args.len() {
         if parse_language(&args[i]).is_some() {
             lang_index = i;
@@ -233,6 +243,9 @@ fn main() -> io::Result<()> {
             if let Ok(seconds) = args[i].parse::<u64>() {
                 delay_seconds = seconds;
             }
+        } else if start_exe_path.is_none() {
+            // 解析为启动exe路径
+            start_exe_path = Some(args[i].clone());
         }
     }
     
@@ -312,7 +325,7 @@ fn main() -> io::Result<()> {
             // 应用字体配置
             cc.egui_ctx.set_fonts(fonts);
             
-            Ok(Box::new(UpdateApp::new(package_path, lang, target_path, zip_inner_path, delay_seconds)))
+            Ok(Box::new(UpdateApp::new(package_path, lang, target_path, zip_inner_path, delay_seconds, start_exe_path)))
         }),
     ).unwrap();
     

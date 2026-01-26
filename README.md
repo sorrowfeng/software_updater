@@ -43,13 +43,14 @@ cargo run --release -- <package_path> [zip_inner_path] <target_path> [delay_seco
 ### 命令行参数
 
 ```
-software_updater <package_path> [zip_inner_path] <target_path> [delay_seconds] [zh|en]
+software_updater <package_path> [zip_inner_path] <target_path> [delay_seconds] [start_exe_path] [zh|en]
 ```
 
 - `package_path`：更新包的路径（必填）
 - `zip_inner_path`：压缩包内要复制的路径（可选，默认为根目录）
 - `target_path`：目标路径（必填）
 - `delay_seconds`：启动前延时时间（秒，可选，默认为0）
+- `start_exe_path`：更新成功后要启动的exe路径（可选）
 - `zh|en`：语言选项（可选，默认为中文）
 
 ### 示例
@@ -77,6 +78,11 @@ software_updater <package_path> [zip_inner_path] <target_path> [delay_seconds] [
 5. **指定所有参数**
    ```bash
    software_updater update.zip app_folder C:\target\directory 5 en
+   ```
+
+6. **更新完成后启动应用程序**
+   ```bash
+   software_updater update.zip app_folder C:\target\directory 3 C:\target\directory\app.exe en
    ```
 
 ## 项目结构
